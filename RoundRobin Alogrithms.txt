@@ -1,0 +1,146 @@
+#!/bin/bash
+#
+# Purpose: Script to execute round-robin algorithm
+#
+# Usage: ./AssQ2.sh <pos1(file) pos2(Quantum Number)>
+#
+# Author: Oluwabusayo Adeyemi Date Created:29/11/2022
+#
+# Version: v1
+#
+# Updated: Author:
+#
+#
+#Check the number of parameters
+if test $# != 2 #test the number of parameters
+then
+echo "wrong number of parameters"
+echo "usage:./script FILENAME and QUANTUM NUMBER"
+exit
+fi
+#Check if the first and second parameters are a file
+#If the file parameter is a file open it
+#Get all the headers
+if test -f $1 #test if it is a file
+then
+if test $2 -gt 0 #test if it is a valid number
+then
+outdata="output$1" #value for output file concatenated with the file name
+cp $1 $outdata #copy record to the output file
+echo "$1 data file entered"
+cat $1 #display file records
+outdata="output$1"
+quota=$2
+fount=(`cat $1`) #read to an array
+nstr=${#fount[*]} #get the count of array
+h=0
+#echo -n "Time" #Display time header
+while test $h -lt $nstr
+do
+echo -n " ${fount[h]} " #Display the headers
+echo -n " ${fount[h]} " >> $outdata #Write to file
+((h = $h + 3))
+done
+echo
+else
+echo "The value for quantum number => $2 is not valid"
+echo "Input valid number greater than 0"
+exit
+fi
+else
+echo "The filename => $1 is not valid"
+echo "Input valid file"
+exit
+fi
+#Done with the headers here
+#Get all Arrival and Burst Time in an Array
+(( Dlimt= ${#fount[*]} - 1 ))
+i=0
+j=0
+while test $i -le $Dlimt
+do
+HeaderList[$j]="P$j" #To get the process header in P1,P2....
+(( BurstTime[$j]= ${fount[i+2]} )) #To get the burst time value in the array
+(( ArrivalTime[$j]= ${fount[i+1]} )) #To get the arrival time in the array
+((j= $j + 1 )) #increment the counter for the header
+((i= $i + 3 )) #increment by 3 to get a new line
+done
+#Start implementing the round-robin algorithm
+#Get Total Turnaround Time
+i=0
+(( countAT= ${#ArrivalTime[*]} ))
+while test $i -lt $countAT #========
+do
+(( TotalTAT= $TotalTAT + ${BurstTime[i]} )) #This gives us our total turnaround time
+(( i= $i + 1 ))
+done
+#Start round-robin
+t=0
+processNumb=-1
+qNumb=0
+temp=()
+while test $t -le $TotalTAT #iterating t against the total turnaround time
+do
+#Adding round robin at the beginning
+#Add to queue when burst time greater than zero
+#This helps add items to the back of our array because we cannot remove them from the array
+if [[ ${BurstTime[$processNumb]} -gt 0 && $processNumb -gt -1 ]]
+then
+temp+=(${HeaderList[$processNumb]}) #adding the process header
+fi
+#Add to queue when arrival time is equal to $t
+#processNumb is a flag the process is running
+q=0
+while test $q -lt $countAT
+do
+if [[ ${ArrivalTime[$q]} -eq $t && $processNumb -eq -1 ]]
+then
+temp+=(${HeaderList[$q]})
+elif [[ ${ArrivalTime[$q]} -eq $t && $processNumb -gt -1 ]]
+then
+temp+=(${HeaderList[$q]})
+fi
+(( q= $q + 1 ))
+done
+#Treat Queue Now
+#HolderTime is to hold our values in an array to display output
+p=0
+while test $p -lt $countAT
+do
+if [[ ${ArrivalTime[$p]} -gt $t ]]
+then
+HolderTime[$p]="-"
+elif [[ ${BurstTime[$p]} -gt 0 && ${temp[$qNumb]} = ${HeaderList[$p]} ]]
+then
+HolderTime[$p]="R"
+(( BurstTime[$p]=${BurstTime[p]}-1 ))
+processNumb=$p
+elif [[ ${BurstTime[$p]} -gt 0 && ${ArrivalTime[$p]} -le $t ]]
+then
+HolderTime[$p]="W"
+elif [[ ${BurstTime[$p]} = 0 ]]
+then
+HolderTime[$p]="F"
+fi
+(( p= $p + 1 ))
+done
+#Output current time
+echo " " >> $outdata
+echo -n "$t "
+echo -n "$t " >> $outdata
+#loop current holdertime to display output
+r=0
+while test $r -lt ${#HolderTime[*]}
+do
+echo -n " ${HolderTime[r]} "
+echo -n " ${HolderTime[r]} " >> $outdata
+HolderTime[$r]="Q" ### ------ to reset the holder
+(( r= $r + 1 ))
+done
+echo #=====
+(( qNumb=$qNumb + 1 )) #Increase the queue counter by 1 to get the next item in queue
+(( t= $t + $quota )) #increase the time by quantum
+done
+echo "" >> $outdata #to create a new line in file
+echo
+exit 0
